@@ -94,11 +94,11 @@ def map_keyboard():
      }
     done = False
     print("Controlling joints. Press ? for help, Esc to quit.")
-    list_commands = ['9', '9', '9', '9', '9', '6', '6', '6', '6', '6', '\x1b']
+    list_commands = ['u', 'u', 'u', 'u', 'i', 'i', 'i', 'i', '\x1b']
     i = 0
 
     delta = 0.1
-
+    """
     current_position = left.joint_angle(lj[0])
     while (current_position < 1.0):
         current_position = left.joint_angle(lj[0])
@@ -106,12 +106,11 @@ def map_keyboard():
         print("radians: ", current_position);
         left.set_joint_positions(joint_command)
         rospy.sleep(0.01)
-
+    """
     while not done and not rospy.is_shutdown():
         #c = baxter_external_devices.getch()
         rospy.sleep(1)
-        c = '\x03'
-        #c = list_commands[i]
+        c = list_commands[i]
         i += 1
         if c:
             #catch Esc or ctrl-c
