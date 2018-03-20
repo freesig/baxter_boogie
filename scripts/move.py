@@ -54,9 +54,6 @@ import baxter_external_devices
 
 from baxter_interface import CHECK_VERSION
 
-def dance_move():
-
-
 def right_arm():
     pose = Pose(
             position=Point(
