@@ -1,8 +1,10 @@
+#!/usr/bin/env python
+
 import pyaudio
 import wave
 import sys
 import struct
-import rospy
+#import rospy
 from std_msgs.msg import String
 
 def detect():
