@@ -30,6 +30,9 @@
 """
 Baxter RSDK Inverse Kinematics Example
 """
+
+import time
+
 import argparse
 import struct
 import sys
@@ -55,11 +58,11 @@ import baxter_external_devices
 from baxter_interface import CHECK_VERSION
 
 def right_arm():
-    pose = Pose(
+    pose_right_init = Pose(
             position=Point(
                 x=0.656982770038,
-                y=-0.852598021641,
-                z=0.0388609422173,
+                y=-0.752598021641,
+                z=0.5388609422173,
                 ),
             orientation=Quaternion(
                 x=0.367048116303,
@@ -68,7 +71,60 @@ def right_arm():
                 w=0.261868353356,
                 ),
             )
-    return ik_test('right', pose)
+
+    pose_right_goal = Pose(
+            position=Point(
+                x=0.656982770038,
+                y=-0.252598021641,
+                z=0.5388609422173,
+                ),
+            orientation=Quaternion(
+                x=0.367048116303,
+                y=0.885911751787,
+                z=-0.108908281936,
+                w=0.261868353356,
+                ),
+            )
+
+    pose_left_init = Pose(
+            position=Point(
+                x=0.656982770038,
+                y=0.052598021641,
+                z=0.5388609422173,
+                ),
+            orientation=Quaternion(
+                x=0.367048116303,
+                y=0.885911751787,
+                z=-0.108908281936,
+                w=0.261868353356,
+                ),
+            )
+
+    pose_left_goal = Pose(
+            position=Point(
+                x=0.656982770038,
+                y=0.552598021641,
+                z=0.5388609422173,
+                ),
+            orientation=Quaternion(
+                x=0.367048116303,
+                y=0.885911751787,
+                z=-0.108908281936,
+                w=0.261868353356,
+                ),
+            )
+
+
+    limit = 10;
+    i = 0;
+
+    while (i < limit):
+        i += 1;
+        ik_test('right', pose_right_init)
+        ik_test('left', pose_left_init)
+        time.sleep(3);
+        ik_test('right', pose_right_goal)
+        ik_test('left', pose_left_goal)
 
 def ik_test(limb, pose):
     rospy.init_node("rsdk_ik_service_client")
@@ -109,8 +165,8 @@ def ik_test(limb, pose):
 
 
 
-        left = baxter_interface.Limb('left')
-        lj = left.joint_names()
+        arm = baxter_interface.Limb(limb)
+        lj = arm.joint_names()
 
         #current_position = left.joint_angle(lj[3])
         #joint_command = {lj[3]: current_position - delta}
@@ -120,9 +176,11 @@ def ik_test(limb, pose):
         for i in range(0, len(resp.joints[0].name)):
             command[resp.joints[0].name[i]] = resp.joints[0].position[i];
 
-        left.move_to_joint_positions(command)
+        print command;
 
-        left.set_joint_position_speed(1.0);
+        arm.move_to_joint_positions(command)
+
+        arm.set_joint_position_speed(1.0);
 
 
 
