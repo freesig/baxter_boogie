@@ -31,6 +31,7 @@
 Baxter RSDK Inverse Kinematics Example
 """
 
+import _thread
 import time
 
 import argparse
@@ -85,6 +86,7 @@ def right_arm():
                 w=0.261868353356,
                 ),
             )
+    '''
 
     pose_left_init = Pose(
             position=Point(
@@ -125,6 +127,55 @@ def right_arm():
         time.sleep(3);
         ik_test('right', pose_right_goal)
         ik_test('left', pose_left_goal)
+    '''
+    limit = 10;
+    i = 0;
+
+    while (i < limit):
+        i += 1;
+        ik_test('right', pose_right_init)
+        time.sleep(3);
+        ik_test('right', pose_right_goal)
+
+
+
+def left_arm():
+    pose_left_init = Pose(
+            position=Point(
+                x=0.656982770038,
+                y=0.052598021641,
+                z=0.5388609422173,
+                ),
+            orientation=Quaternion(
+                x=0.367048116303,
+                y=0.885911751787,
+                z=-0.108908281936,
+                w=0.261868353356,
+                ),
+            )
+
+    pose_left_goal = Pose(
+            position=Point(
+                x=0.656982770038,
+                y=0.552598021641,
+                z=0.5388609422173,
+                ),
+            orientation=Quaternion(
+                x=0.367048116303,
+                y=0.885911751787,
+                z=-0.108908281936,
+                w=0.261868353356,
+                ),
+            )
+
+    limit = 10;
+    i = 0;
+
+    while (i < limit):
+        i += 1;
+        ik_test('left', pose_right_init)
+        time.sleep(3);
+        ik_test('left', pose_right_goal)
 
 def ik_test(limb, pose):
     rospy.init_node("rsdk_ik_service_client")
@@ -205,7 +256,24 @@ def main():
     response of whether a valid joint solution was found,
     and if so, the corresponding joint angles.
     """
-    return right_arm()
+    #return right_arm()
+    print("Ready to Go!")
+    _thread.start_new_thread(right_arm(),())
+    _thread.start_new_thread(left_arm(),())
+
+    '''
+    limit = 10
+    i = 1
+
+    while (i < limit):
+        _thread.start_new_thread(ik_test,('right',pose_right_init))
+        _thread.start_new_thread(ik_test,('left',pose_left_init))
+        sleep(3)
+        _thread.start_new_thread(ik_test,('right',pose_right_goal))
+        _thread.start_new_thread(ik_test,('left',pose_left_goal))
+    '''
+
+
 
 if __name__ == '__main__':
     sys.exit(main())
