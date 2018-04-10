@@ -31,7 +31,7 @@
 Baxter RSDK Inverse Kinematics Example
 """
 
-import _thread
+import thread
 import time
 
 import argparse
@@ -127,17 +127,20 @@ def right_arm():
         time.sleep(3);
         ik_test('right', pose_right_goal)
         ik_test('left', pose_left_goal)
-    '''
-    limit = 10;
+    
+    limit = 3;
     i = 0;
 
     while (i < limit):
         i += 1;
         ik_test('right', pose_right_init)
+        print("message from right", i)
         time.sleep(3);
         ik_test('right', pose_right_goal)
-
-
+'''
+    ik_test('right', pose_right_init)
+    time.sleep(3)
+    ik_test('left', pose_right_goal)
 
 def left_arm():
     pose_left_init = Pose(
@@ -167,16 +170,20 @@ def left_arm():
                 w=0.261868353356,
                 ),
             )
-
-    limit = 10;
+'''
+    limit = 3;
     i = 0;
 
     while (i < limit):
         i += 1;
-        ik_test('left', pose_right_init)
+        ik_test('left', pose_left_init)
+        print("message from left", i)
         time.sleep(3);
-        ik_test('left', pose_right_goal)
-
+        ik_test('left', pose_left_goal)
+'''
+    ik_test('left',pose_left_init)
+    sleep(3)
+    ik_test('left',pose_left_goal)
 def ik_test(limb, pose):
     rospy.init_node("rsdk_ik_service_client")
     ns = "ExternalTools/" + limb + "/PositionKinematicsNode/IKService"
@@ -258,8 +265,8 @@ def main():
     """
     #return right_arm()
     print("Ready to Go!")
-    _thread.start_new_thread(right_arm(),())
-    _thread.start_new_thread(left_arm(),())
+    thread.start_new_thread(left_arm(),())
+    thread.start_new_thread(right_arm(),())
 
     '''
     limit = 10
