@@ -1,5 +1,4 @@
 <launch>
-    <node pkg="boogie_dev" type="move_base.py" name="move_base"/>
     <node pkg="boogie_dev" type="move_left.py" name="move_left"/>
     <node pkg="boogie_dev" type="move_right.py" name="move_right"/>
 </launch>
