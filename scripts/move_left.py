@@ -31,6 +31,9 @@
 Baxter RSDK Inverse Kinematics Example
 """
 
+import thread
+import threading
+
 import time
 
 import argparse
@@ -57,35 +60,16 @@ import baxter_external_devices
 
 from baxter_interface import CHECK_VERSION
 
-def right_arm():
-    pose_right_init = Pose(
-            position=Point(
-                x=0.656982770038,
-                y=-0.752598021641,
-                z=0.5388609422173,
-                ),
-            orientation=Quaternion(
-                x=0.367048116303,
-                y=0.885911751787,
-                z=-0.108908281936,
-                w=0.261868353356,
-                ),
-            )
+import socket
+IP = "10.42.1.254"
+UDP_IP = "127.0.0.1"
+UDP_PORT = 55000
 
-    pose_right_goal = Pose(
-            position=Point(
-                x=0.656982770038,
-                y=-0.252598021641,
-                z=0.5388609422173,
-                ),
-            orientation=Quaternion(
-                x=0.367048116303,
-                y=0.885911751787,
-                z=-0.108908281936,
-                w=0.261868353356,
-                ),
-            )
+SPEED = 1.0;
 
+at_init = True;
+
+def left_arm():
     pose_left_init = Pose(
             position=Point(
                 x=0.656982770038,
@@ -115,19 +99,24 @@ def right_arm():
             )
 
 
-    limit = 10;
+    limit = 1;
     i = 0;
+
+    global at_init;
 
     while (i < limit):
         i += 1;
-        ik_test('right', pose_right_init)
-        ik_test('left', pose_left_init)
-        time.sleep(3);
-        ik_test('right', pose_right_goal)
-        ik_test('left', pose_left_goal)
+        if (at_init):
+            ik_test('left', pose_left_init)
+        else: 
+            ik_test('left', pose_left_goal)
+        time.sleep(1);
+
+    at_init = not at_init;
+
 
 def ik_test(limb, pose):
-    rospy.init_node("rsdk_ik_service_client")
+    rospy.init_node("move_left")
     ns = "ExternalTools/" + limb + "/PositionKinematicsNode/IKService"
     iksvc = rospy.ServiceProxy(ns, SolvePositionIK)
     ikreq = SolvePositionIKRequest()
@@ -180,7 +169,9 @@ def ik_test(limb, pose):
 
         arm.move_to_joint_positions(command)
 
-        arm.set_joint_position_speed(1.0);
+        global SPEED;
+
+        arm.set_joint_position_speed(SPEED);
 
 
 
@@ -205,7 +196,48 @@ def main():
     response of whether a valid joint solution was found,
     and if so, the corresponding joint angles.
     """
-    return right_arm()
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind((IP, UDP_PORT))
+
+    # run right arm in a thread
+
+    lim = 10;
+    j = 0;
+
+    global SPEED;
+
+    while (j < lim):
+        j += 1;
+        print "waiting at ", j
+        data, addr = sock.recvfrom(1024);
+        mdata = recv_data(data, 1);
+
+        ct = time.time()
+
+        while (float(ct) < float(mdata[0])):
+
+            ct = time.time();
+            time.sleep(0.01);
+
+
+        SPEED = mdata[1];
+
+        left_arm();
+
+
+def recv_data(data, p):
+
+    list_data = data.split(',');
+
+    print list_data[1];
+    list_data[1] = float(list_data[1]);
+
+    list_data[1] = min(3000, list_data[1]);
+    list_data[1] /= 3000;
+    list_data[0] = float(list_data[0]);
+
+    return list_data;
 
 if __name__ == '__main__':
     sys.exit(main())

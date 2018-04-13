@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="boogie_dev" type="move_base" name="move_base"/>
+    <node pkg="boogie_dev" type="move_left" name="move_left"/>
+    <node pkg="boogie_dev" type="move_right" name="move_right"/>
+</launch>

@@ -12,7 +12,7 @@ from geometry_msgs.msg import Twist
 import socket
 IP = "10.42.1.254"
 UDP_IP = "127.0.0.1"
-UDP_PORT = 65000
+UDP_PORT = 53000
 
 #base_pub = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=1)
 base_pub = rospy.Publisher('/safebase/cmd_vel', Twist, queue_size=1)
@@ -71,7 +71,7 @@ def recv_data(data, publisher):
 def do_publish(publisher, nil):
     hz = 10;
     frame_time_ms = 1000 / hz;
-    duration_ms = 30000; # ms
+    duration_ms = 60000; # ms
     elapsed = 0;
     rate = rospy.Rate(hz) # 10hz
     while not rospy.is_shutdown() and elapsed < duration_ms:
