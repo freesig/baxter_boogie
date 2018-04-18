@@ -69,16 +69,33 @@ SPEED = 1.0;
 
 at_init = True;
 
+INIT_X=0.656982770038
+INIT_Y=-0.752598021641
+INIT_Z=0.5388609422173
 
+LIMIT_X=0.656982770038
+LIMIT_Y=-0.252598021641
+LIMIT_Z=0.5388609422173
 
- 
+current_x = INIT_X
+current_y = INIT_Y
+current_z = INIT_Z
+
+INC = 0.05
+# make a 'direction' class for xyz
+#i.e, contract to 0, -1, or 1
+def move_inc(x,y,z):
+	current_x += x*INC;
+	current_y += y*INC;
+	current_z += z*INC;
+ 	
 
 def right_arm():
     pose_right_init = Pose(
             position=Point(
-                x=0.656982770038,
-                y=-0.752598021641,
-                z=0.5388609422173,
+                x=current_x,
+                y=current_y,
+                z=current_z,
                 ),
             orientation=Quaternion(
                 x=0.367048116303,
@@ -87,6 +104,7 @@ def right_arm():
                 w=0.261868353356,
                 ),
             )
+"""
 
     pose_right_goal = Pose(
             position=Point(
@@ -99,7 +117,8 @@ def right_arm():
                 y=0.885911751787,
                 z=-0.108908281936,
                 w=0.261868353356,
-                ),
+                )
+
             )
 
     limit = 1;
@@ -116,7 +135,8 @@ def right_arm():
         time.sleep(1);
 
     at_init = not at_init;
-
+"""
+    ik_test('right', pose_right_init)
 
 def ik_test(limb, pose):
     rospy.init_node("move_right")
@@ -225,6 +245,30 @@ def main():
 
 
         SPEED = mdata[1];
+
+		x_dir = 0;
+		y_dir = 0;
+		z_dir = 0;
+				
+
+		if (current_x > LIMIT_X):
+			x_dir = -1
+		elif(current_x < LIMIT_X): 
+			x_dir = 1
+
+		if (current_y > LIMIT_Y):
+			y_dir = -1
+		elif(current_y < LIMIT_Y): 
+			y_dir = 1
+	
+		
+		if (current_z > LIMIT_Z):
+			z_dir = -1
+		elif(current_z < LIMIT_Z): 
+			z_dir = 1
+	
+		
+		move_inc(x_dir,y_dir,z_dir)		
 
         right_arm();
 
