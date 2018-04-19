@@ -206,6 +206,8 @@ def main():
 
     global SPEED;
 
+    print "commence right"
+
     while (j < lim):
         j += 1;
         print "waiting at ", j
