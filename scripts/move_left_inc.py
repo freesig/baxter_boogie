@@ -92,7 +92,7 @@ def left_arm():
             )
 
     ik_test('left', position)
-    time.sleep(1);
+    #time.sleep(1);
 
 def ik_test(limb, pose):
     rospy.init_node("move_left")
