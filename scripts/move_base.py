@@ -12,7 +12,7 @@ from geometry_msgs.msg import Twist
 import socket
 IP = "10.42.1.254"
 UDP_IP = "127.0.0.1"
-UDP_PORT = 53000
+UDP_PORT = 52000
 
 #base_pub = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=1)
 base_pub = rospy.Publisher('/safebase/cmd_vel', Twist, queue_size=1)
@@ -23,7 +23,7 @@ import thread
 import time
 
 DEFAULT_SPEED = 0.0
-DEFAULT_SPIN = 0.3
+DEFAULT_SPIN = 0.8
 
 spin_speed = DEFAULT_SPEED;
 
@@ -50,12 +50,12 @@ def recv_data(data, publisher):
 
     list_data = data.split(',');
 
-    print list_data[1];
     list_data[1] = float(list_data[1]);
 
-    list_data[1] = min(3000, list_data[1]);
-    list_data[1] /= 3000;
+    list_data[1] = min(1700, list_data[1]);
+    list_data[1] /= 1700;
 
+    print list_data[1];
     #list_data[1] *= 0.5;
 
     spin_speed = list_data[1];
@@ -64,9 +64,9 @@ def recv_data(data, publisher):
     print (time.time());
     #print (data);
     time_until = list_data[0] - time.time();
-    #print time_until;
+    print time_until;
     #if not beat_waiting:
-    thread.start_new_thread(beat, (DEFAULT_SPEED, 0));
+    thread.start_new_thread(beat, (time_until, 0));
 
 def do_publish(publisher, nil):
     hz = 10;
@@ -81,7 +81,7 @@ def do_publish(publisher, nil):
 
         #print ("spin speed", spin_speed);
 
-        msg.angular.z = spin_speed*direction;
+        msg.angular.z = spin_speed*direction*2;
         publisher.publish(msg);
         elapsed += frame_time_ms;
         rate.sleep()
@@ -102,6 +102,8 @@ def main():
     sock.bind((IP, UDP_PORT))
 
     thread.start_new_thread(do_publish, (base_pub, 0));
+
+    print "comment base"
 
     while True:
         print "waiting"

@@ -21,15 +21,12 @@
 # ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
 # LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
 # CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# SUBSTITUTE GOODS OR SERVICES LOSS OF USE, DATA, OR PROFITS OR BUSINESS
 # INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
 # CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-"""
-Baxter RSDK Inverse Kinematics Example
-"""
 
 import thread
 import threading
@@ -61,41 +58,41 @@ import baxter_external_devices
 from baxter_interface import CHECK_VERSION
 
 import socket
-IP = "10.42.1.254"
-UDP_IP = "127.0.0.1"
-UDP_PORT = 54000
 
-SPEED = 1.0;
-
-at_init = True;
-
-INIT_X=0.656982770038
-INIT_Y=-0.752598021641
-INIT_Z=0.5388609422173
-
-LIMIT_X=0.656982770038
-LIMIT_Y=-0.252598021641
-LIMIT_Z=0.5388609422173
-
-current_x = INIT_X
-current_y = INIT_Y
-current_z = INIT_Z
-
-INC = 0.05
 # make a 'direction' class for xyz
 #i.e, contract to 0, -1, or 1
-def move_inc(x,y,z):
-	current_x += x*INC;
-	current_y += y*INC;
-	current_z += z*INC;
+def move_inc(p, v):
+    INC = 0.05
+    dp = (p[0] + v[0] * INC,
+    p[1] + v[1] * INC,
+    p[2] + v[2] * INC)
+    return dp
+
+def limit_dirs(p):
+    LIMITS = (0.656982770038,
+            -0.252598021641,
+            0.5388609422173)
+
+    def limit(pl):
+        if pl[0] > pl[1]:
+            return -1
+        elif pl[0] < pl[1]:
+            return 1
+        else:
+            return 0
+
+    return map(limit, zip(p, LIMITS)) 
  	
 
-def right_arm():
-    pose_right_init = Pose(
+def right_arm(pos):
+    '''
+    Create goal Pose and call ik move
+    '''
+    pose_right = Pose(
             position=Point(
-                x=current_x,
-                y=current_y,
-                z=current_z,
+                x=pos[0],
+                y=pos[1],
+                z=pos[2],
                 ),
             orientation=Quaternion(
                 x=0.367048116303,
@@ -104,41 +101,10 @@ def right_arm():
                 w=0.261868353356,
                 ),
             )
-"""
 
-    pose_right_goal = Pose(
-            position=Point(
-                x=0.656982770038,
-                y=-0.252598021641,
-                z=0.5388609422173,
-                ),
-            orientation=Quaternion(
-                x=0.367048116303,
-                y=0.885911751787,
-                z=-0.108908281936,
-                w=0.261868353356,
-                )
+    ik_move('right', pose_right)
 
-            )
-
-    limit = 1;
-    i = 0;
-
-    global at_init;
-
-    while (i < limit):
-        i += 1;
-        if (at_init):
-            ik_test('right', pose_right_init)
-        else: 
-            ik_test('right', pose_right_goal)
-        time.sleep(1);
-
-    at_init = not at_init;
-"""
-    ik_test('right', pose_right_init)
-
-def ik_test(limb, pose):
+def ik_move(limb, pose):
     rospy.init_node("move_right")
     ns = "ExternalTools/" + limb + "/PositionKinematicsNode/IKService"
     iksvc = rospy.ServiceProxy(ns, SolvePositionIK)
@@ -175,116 +141,97 @@ def ik_test(limb, pose):
         print "------------------"
         print "Response Message:\n", resp
 
+        return resp
+    else:
+        print("INVALID POSE - No Valid Joint Solution Found.")
+        return None
 
-
+def make_move(msg, limb, speed):
         arm = baxter_interface.Limb(limb)
         lj = arm.joint_names()
 
-        #current_position = left.joint_angle(lj[3])
-        #joint_command = {lj[3]: current_position - delta}
+        command = {}
 
-        command = {};
+        for i in range(0, len(msg.joints[0].name)):
+            command[msg.joints[0].name[i]] = msg.joints[0].position[i]
 
-        for i in range(0, len(resp.joints[0].name)):
-            command[resp.joints[0].name[i]] = resp.joints[0].position[i];
+        print command
 
-        print command;
+        arm.set_joint_position_speed(speed)
 
         arm.move_to_joint_positions(command)
 
-        global SPEED;
 
-        arm.set_joint_position_speed(SPEED);
+def recv_data(data):
+    '''
+    Take udp data and break into component messages
+    '''
+    
+    # split on token
+    list_data = data.split(',')
+    
+    # Convert next beat time
+    list_data[0] = float(list_data[0])
 
+    # Convert and normalize energy
+    list_data[1] = float(list_data[1])
+    list_data[1] = min(3000, list_data[1])
+    list_data[1] /= 3000
 
+    dict_data = {'beat': list_data[0], 'energy': list_data[1]}
 
+    return dict_data
 
-
-    else:
-        print("INVALID POSE - No Valid Joint Solution Found.")
-
-    return 0
-
-
-def main():
-    """RSDK Inverse Kinematics Example
-
-    A simple example of using the Rethink Inverse Kinematics
-    Service which returns the joint angles and validity for
-    a requested Cartesian Pose.
-
-    Run this example, passing the *limb* to test, and the
-    example will call the Service with a sample Cartesian
-    Pose, pre-defined in the example code, printing the
-    response of whether a valid joint solution was found,
-    and if so, the corresponding joint angles.
-    """
-
+def create_socket():
+    ''' 
+    Create socket for incoming music data.
+    This will change when music moves internally onto ros
+    '''
+    IP = "10.42.1.254"
+    UDP_IP = "127.0.0.1"
+    UDP_PORT = 54000
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((IP, UDP_PORT))
+    return sock
 
-    # run right arm in a thread
+def main():
+    sock = create_socket()
 
-    lim = 10;
-    j = 0;
+    INIT_X=0.656982770038
+    INIT_Y=-0.752598021641
+    INIT_Z=0.5388609422173
+    current_p = (INIT_X, INIT_Y, INIT_Z)
+    directions = (0, 0, 0)
 
-    global SPEED;
-
+    # limit the amount of movement calls
+    lim = 10
+    j = 0
     while (j < lim):
-        j += 1;
+        j += 1
         print "waiting at ", j
-        data, addr = sock.recvfrom(1024);
-        mdata = recv_data(data, 1);
+        # socket call
+        data, addr = sock.recvfrom(1024)
+        mdata = recv_data(data)
 
+        # Wait till next beat
         ct = time.time()
-
-        while (float(ct) < float(mdata[0])):
-
-            ct = time.time();
-            time.sleep(0.01);
+        while (float(ct) < float(mdata['beat'])):
+            ct = time.time()
+            time.sleep(0.01)
 
 
-        SPEED = mdata[1];
+        speed = mdata['energy']
 
-		x_dir = 0;
-		y_dir = 0;
-		z_dir = 0;
-				
-
-		if (current_x > LIMIT_X):
-			x_dir = -1
-		elif(current_x < LIMIT_X): 
-			x_dir = 1
-
-		if (current_y > LIMIT_Y):
-			y_dir = -1
-		elif(current_y < LIMIT_Y): 
-			y_dir = 1
+        directions = limit_dirs(current_p)
 	
-		
-		if (current_z > LIMIT_Z):
-			z_dir = -1
-		elif(current_z < LIMIT_Z): 
-			z_dir = 1
-	
-		
-		move_inc(x_dir,y_dir,z_dir)		
+    	current_p = move_inc(current_p, (0,1,0))		
 
-        right_arm();
+        print "directions: ", directions
+        print "current_p: ", current_p 
 
-
-def recv_data(data, p):
-
-    list_data = data.split(',');
-
-    print list_data[1];
-    list_data[1] = float(list_data[1]);
-
-    list_data[1] = min(3000, list_data[1]);
-    list_data[1] /= 3000;
-
-    list_data[0] = float(list_data[0]);
-    return list_data;
+        resp = right_arm()
+        if resp is not None:
+            make_move(resp, 'right', speed)
 
 if __name__ == '__main__':
     sys.exit(main())
