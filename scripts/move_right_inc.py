@@ -80,6 +80,7 @@ def create_socket():
     UDP_PORT = 54000
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((IP, UDP_PORT))
+    sock.setblocking(0)
     return sock
 
 def main():

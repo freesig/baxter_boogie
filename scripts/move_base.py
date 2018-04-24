@@ -7,12 +7,7 @@ import time
 
 from geometry_msgs.msg import Twist
 
-#from beginner_tutorials.msg import music_keys
-
 import socket
-IP = "10.42.1.254"
-UDP_IP = "127.0.0.1"
-UDP_PORT = 52000
 
 #base_pub = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=1)
 base_pub = rospy.Publisher('/safebase/cmd_vel', Twist, queue_size=1)
@@ -86,20 +81,24 @@ def do_publish(publisher, nil):
         elapsed += frame_time_ms;
         rate.sleep()
 
+def create_socket():
+    IP = "10.42.1.254"
+    UDP_IP = "127.0.0.1"
+    UDP_PORT = 52000
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind((IP, UDP_PORT))
+
+
 def main():
+    sock = create_socket()
 
     hz = 10;
 
     rospy.init_node('test', anonymous=True)
-    #rospy.Subscriber("chatter", music_keys, callback)
-    rate = rospy.Rate(hz) # 10hz
 
     frame_time_ms = 1000 / hz;
     duration_ms = 2000; # ms
     elapsed = 0;
-
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind((IP, UDP_PORT))
 
     thread.start_new_thread(do_publish, (base_pub, 0));
 
@@ -115,6 +114,7 @@ def main():
         #send_move(base_pub, [1.0, 1.0]);
 
     rospy.spin()
+    socket.close()
 
 if __name__ == '__main__':
     try:
