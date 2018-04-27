@@ -45,9 +45,9 @@ def left_arm(pos):
     quaternion = Vectors.V4D(0.36, 0.88, -0.10, 0.26);
     position = Pose(
             position=Point(
-                x=pos[0],
-                y=pos[1],
-                z=pos[2],
+                x=pos.x(),
+                y=pos.y(),
+                z=pos.z(),
                 ),
             orientation=Quaternion(
                 x=quaternion.x(),

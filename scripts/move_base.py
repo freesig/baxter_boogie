@@ -10,7 +10,7 @@ from geometry_msgs.msg import Twist
 import socket
 
 #base_pub = rospy.Publisher('/turtle1/cmd_vel', Twist, queue_size=1)
-base_pub = rospy.Publisher('/safebase/cmd_vel', Twist, queue_size=1)
+base_pub = rospy.Publisher('/mobility_base/cmd_vel', Twist, queue_size=1)
 direction = 1
 beat_waiting = False;
 
@@ -19,6 +19,8 @@ import time
 
 DEFAULT_SPEED = 0.0
 DEFAULT_SPIN = 0.8
+
+MAX_SPIN = 0.8;
 
 spin_speed = DEFAULT_SPEED;
 
@@ -69,14 +71,20 @@ def do_publish(publisher, nil):
     duration_ms = 60000; # ms
     elapsed = 0;
     rate = rospy.Rate(hz) # 10hz
+
+    global spin_speed;
+
     while not rospy.is_shutdown() and elapsed < duration_ms:
         msg = Twist()
         msg.linear.x = DEFAULT_SPEED;
         #print msg.linear.x;
 
         #print ("spin speed", spin_speed);
+        spin_speed = min(MAX_SPIN, spin_speed);
 
-        msg.angular.z = spin_speed*direction*2;
+        msg.angular.z = spin_speed*direction;
+
+
         publisher.publish(msg);
         elapsed += frame_time_ms;
         rate.sleep()
@@ -87,6 +95,7 @@ def create_socket():
     UDP_PORT = 52000
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((IP, UDP_PORT))
+    return sock
 
 
 def main():

@@ -55,9 +55,9 @@ def right_arm(pos):
     '''
     pose_right = Pose(
             position=Point(
-                x=pos[0],
-                y=pos[1],
-                z=pos[2],
+                x=pos.x(),
+                y=pos.y(),
+                z=pos.z(),
                 ),
             orientation=Quaternion(
                 x=0.367048116303,
