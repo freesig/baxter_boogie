@@ -73,7 +73,7 @@ def create_socket():
     return sock
 
 def main():
-    init_pos = Vectors.V4D(0.65, 0.05, 0.53, 0);
+    init_pos = Vectors.V4D(0.65, 0.05, 0.03, 0);
     bound = Vectors.V4D(0.65, 0.55, 0.53, 0);
     edges = {'init': init_pos, 'bound': bound};
     sock = create_socket()

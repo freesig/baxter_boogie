@@ -101,6 +101,9 @@ def recv_data(data):
 
 def decide_increment(data, inc): 
     #TODO - decide based on data
+
+    # z - gradient of onset?
+
     inc = Vectors.V4D(inc.x(), -1 * inc.y(), inc.z(), inc.w())
     return inc;
 
