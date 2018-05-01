@@ -2,7 +2,7 @@ import socket
 import time
 import Vectors
 import struct
-import thread
+import threading
 import Queue
 import rospy
 
@@ -24,6 +24,11 @@ import baxter_external_devices
 from baxter_interface import CHECK_VERSION
 
 direction = 1
+
+mutex = threading.Lock()
+
+last_data = None;
+dz = 0.0;
 
 def ik_move(limb, pose):
     rospy.init_node("move_" + limb)
@@ -64,7 +69,7 @@ def ik_move(limb, pose):
         return None
 
 def make_move(msg, limb, speed):
-    SPEED_SCALE = 4
+    SPEED_SCALE = 1
     speed = speed * SPEED_SCALE
     arm = baxter_interface.Limb(limb)
     lj = arm.joint_names()
@@ -75,6 +80,8 @@ def make_move(msg, limb, speed):
     
 
     arm.set_joint_position_speed(speed)
+
+
 
     arm.set_joint_positions(command)
 
@@ -95,16 +102,37 @@ def recv_data(data):
     list_data[1] = min(3000, list_data[1])
     list_data[1] /= 3000
 
-    dict_data = {'beat': list_data[0], 'energy': list_data[1]}
+    list_data[2] = float(list_data[2]);
+
+    dict_data = {'beat': list_data[0], 'energy': list_data[1], 'onset': list_data[2]}
 
     return dict_data
 
-def decide_increment(data, inc): 
+def decide_increment(data): 
     #TODO - decide based on data
+    mutex.acquire()
+    global direction
+    
+    global dz
 
-    # z - gradient of onset?
+    global last_data;
+    if last_data is None:
+        last_data = data;
 
-    inc = Vectors.V4D(inc.x(), -1 * inc.y(), inc.z(), inc.w())
+    if (data is not None):
+        wow = data['onset'];
+        dwow = data['onset'] - last_data['onset'];
+        if abs(dwow) > 0.01:
+            dz = dwow / 10.0;
+        print "dwow", dwow;
+
+    print "dz: ", dz
+
+    inc = Vectors.V4D(0.0, direction * 0.05, dz , 0.0)
+    mutex.release()
+
+    last_data = data;
+
     return inc;
 
 def clamp(p, inner, outer):
@@ -147,6 +175,8 @@ def run(sock, arm, pose_func, edges):
     lim = 1000
     j = 0
 
+    mdata = None
+
     while (j < lim):
         j += 1
         
@@ -155,26 +185,22 @@ def run(sock, arm, pose_func, edges):
             data, addr = sock.recvfrom(1024)
             mdata = recv_data(data)
             speed = mdata['energy']
-            def swap_inc(data, inc):
+            def swap_inc(data):
                 while time.time() < data['beat']:
                     time.sleep(0.01)
                 global direction
+		mutex.acquire()
                 direction *= -1
-                inc = Vectors.V4D(inc.x(), direction * inc.y(), inc.z(), inc.w())
-                print "sent"
-                channel.put(inc)
+		mutex.release()
+	    t = threading.Thread(target = swap_inc, args = (mdata,))
+            t.daemon = True
+	    t.start()
 
-            thread.start_new_thread(swap_inc, (mdata, increment))
         except socket.error, e:
            None 
         
-        try:
-            increment = channel.get(False)
-            print "got"
-            increment.display()
-        except Queue.Empty:
-            None 
-        
+        increment = decide_increment(mdata);
+
         current_p = current_p + increment
 
         current_p = clamp(current_p, i_bound, o_bound)
@@ -185,5 +211,7 @@ def run(sock, arm, pose_func, edges):
 
         if resp is not None:
             make_move(resp, arm, speed)
+
+        print "--------"
 
         time.sleep(0.1)
