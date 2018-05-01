@@ -143,7 +143,7 @@ def run(sock, arm, pose_func, edges):
     # limit the amount of movement calls
     lim = 1000
     j = 0
-	mutex = threading.Lock()
+    mutex = threading.Lock()
 
     while (j < lim):
         j += 1
@@ -157,15 +157,14 @@ def run(sock, arm, pose_func, edges):
                 while time.time() < data['beat']:
                     time.sleep(0.01)
                 global direction
-				mutex.acquire()
+		mutex.acquire()
                 direction *= -1
-				mutex.release()
+		mutex.release()
                 inc = Vectors.V4D(inc.x(), direction * inc.y(), inc.z(), inc.w())
                 print "sent"
                 channel.put(inc)
-			t = threading.Thread(target = swap_inc, args = (mdata, increment))
-			t.start()
-			t.join() 
+	    t = threading.Thread(target = swap_inc, args = (mdata, increment),daemon = true)
+	    t.start()
 
         except socket.error, e:
            None 

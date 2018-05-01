@@ -64,7 +64,7 @@ def ik_move(limb, pose):
         return None
 
 def make_move(msg, limb, speed):
-    SPEED_SCALE = 4
+    SPEED_SCALE = 1
     speed = speed * SPEED_SCALE
     arm = baxter_interface.Limb(limb)
     lj = arm.joint_names()
@@ -144,8 +144,8 @@ def run(sock, arm, pose_func, edges):
     lim = 1000
     j = 0
 	
-	i = 0
-	locks = []
+    i = 0
+    locks = []
 
 
     while (j < lim):
@@ -157,22 +157,22 @@ def run(sock, arm, pose_func, edges):
             mdata = recv_data(data)
             speed = mdata['energy']
 
-			lock = thread.allocate_lock()
-			lock.acquire()
-			locks.append(lock)			
+	    lock = thread.allocate_lock()
+	    lock.acquire()
+	    locks.append(lock)			
 
             def swap_inc(data, inc, lock):
                 while time.time() < data['beat']:
                     time.sleep(0.01)
                 global direction
                 direction *= -1
-				lock.release()
+		lock.release()
                 inc = Vectors.V4D(inc.x(), direction * inc.y(), inc.z(), inc.w())
                 print "sent"
                 channel.put(inc)
 
             thread.start_new_thread(swap_inc, (mdata, increment,locks[i]))
-			i += 1
+	    i += 1
         except socket.error, e:
            None 
         

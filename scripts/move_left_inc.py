@@ -38,7 +38,7 @@ from geometry_msgs.msg import (
 
 import socket
 
-import move
+import move_threading
 import Vectors
 
 def left_arm(pos):
@@ -78,7 +78,7 @@ def main():
     edges = {'init': init_pos, 'bound': bound};
     sock = create_socket()
     try:
-        move.run(sock, 'left', left_arm, edges)
+        move_threading.run(sock, 'left', left_arm, edges)
     except KeyboardInterrupt:
         sock.close()
 
