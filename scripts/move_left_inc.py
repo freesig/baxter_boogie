@@ -41,8 +41,9 @@ import socket
 import move
 import Vectors
 
-def left_arm(pos):
+def left_arm(pos, rot):
     quaternion = Vectors.V4D(0.36, 0.88, -0.10, 0.26);
+
     position = Pose(
             position=Point(
                 x=pos.x(),
@@ -50,12 +51,14 @@ def left_arm(pos):
                 z=pos.z(),
                 ),
             orientation=Quaternion(
-                x=quaternion.x(),
-                y=quaternion.y(),
-                z=quaternion.z(),
-                w=quaternion.w(),
-                ),
+                x=rot[0],
+                y=rot[1],
+                z=rot[2],
+                w=rot[3],
+                )
             )
+    print rot
+
     return position
 
 

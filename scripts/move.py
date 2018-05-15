@@ -6,6 +6,8 @@ import threading
 import Queue
 import rospy
 
+from tf.transformations import quaternion_from_euler
+
 from geometry_msgs.msg import (
         PoseStamped,
         Pose,
@@ -68,7 +70,7 @@ def ik_move(limb, pose):
         print("INVALID POSE - No Valid Joint Solution Found.")
         return None
 
-def make_move(msg, limb, speed):
+def make_move(msg, limb, speed, base_rot):
     SPEED_SCALE = 1
     speed = speed * SPEED_SCALE
     arm = baxter_interface.Limb(limb)
@@ -76,6 +78,8 @@ def make_move(msg, limb, speed):
 
     command = {}
     for i in range(0, len(msg.joints[0].name)):
+        if i == 0:
+            command[msg.joints[0].name[i]] = msg.joints[0].position[i] + base_rot
         command[msg.joints[0].name[i]] = msg.joints[0].position[i]
     
 
@@ -135,6 +139,16 @@ def decide_increment(data):
 
     return inc;
 
+def decide_rotation(data):
+    if (data is None):
+        rot = quaternion_from_euler(1.6, 1.6, 1.6);
+    else:
+        roll=data['onset']/10;
+        rot = quaternion_from_euler(roll, 1.6, 1.6);
+    rot = quaternion_from_euler(1.6, 1.6, 1.6);
+    return rot;
+
+
 def clamp(p, inner, outer):
     if p.x() > outer.x():
         p = Vectors.V4D(outer.x(), p.y(), p.z(), p.w())
@@ -160,6 +174,10 @@ def clamp(p, inner, outer):
 
 
 def run(sock, arm, pose_func, edges):
+
+    #baxter_interface.enable();
+        
+
     current_p = edges['init']
     i_bound = edges['init']
     o_bound = edges['bound']
@@ -203,15 +221,25 @@ def run(sock, arm, pose_func, edges):
 
         current_p = current_p + increment
 
-        current_p = clamp(current_p, i_bound, o_bound)
+        #current_p = clamp(current_p, i_bound, o_bound)
+        
+        
 
-        pose_func(current_p)
+        rot = quaternion_from_euler(1.6, 1.6, 1.6);
+        #rot = decide_rotation(mdata);
+        pose_func(current_p, rot)
 
-        resp = ik_move(arm, pose_func(current_p))
+        resp = ik_move(arm, pose_func(current_p, rot))
+    
+        if mdata is not None:   
+            spin=mdata['energy']
+        else: spin = 0;
 
         if resp is not None:
-            make_move(resp, arm, speed)
+            make_move(resp, arm, speed, spin*10)
 
         print "--------"
 
         time.sleep(0.1)
+
+    #baxter_interface.disable()
