@@ -8,3 +8,7 @@ This software is designed to make [Baxter](https://www.rethinkrobotics.com/baxte
 - Build the package. Run `catkin_make` from ROS root. [Further Instructions](http://wiki.ros.org/ROS/Tutorials/CreatingPackage)
 
 # User guide
+
+### Base
+- [Run the dance detect software](https://github.com/freesig/dance_detect)
+- From the package root directory, run `rosrun boogie_dev move_base.py`
