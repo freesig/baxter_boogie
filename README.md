@@ -12,3 +12,6 @@ This software is designed to make [Baxter](https://www.rethinkrobotics.com/baxte
 ### Base
 - [Run the dance detect software](https://github.com/freesig/dance_detect)
 - From the package root directory, run `rosrun boogie_dev move_base.py`
+
+### Torso
+- [Run the dance detect software](https://github.com/freesig/dance_detect)
