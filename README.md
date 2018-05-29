@@ -15,3 +15,5 @@ This software is designed to make [Baxter](https://www.rethinkrobotics.com/baxte
 
 ### Torso
 - [Run the dance detect software](https://github.com/freesig/dance_detect)
+- run `source baxter.sh` to set up a Baxter Torso environment
+- run `rosrun boogie_dev move_left_inc.py & rosrun boogie_dev move_right_inc.py`
