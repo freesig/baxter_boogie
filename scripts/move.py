@@ -1,39 +1,9 @@
-#!/usr/bin/env python
-
-# Copyright (c) 2013-2015, Rethink Robotics
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# 1. Redistributions of source code must retain the above copyright notice,
-#    this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
-# 3. Neither the name of the Rethink Robotics nor the names of its
-#    contributors may be used to endorse or promote products derived from
-#    this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-# POSSIBILITY OF SUCH DAMAGE.
-
-"""
-Baxter RSDK Inverse Kinematics Example
-"""
-import argparse
+import socket
+import time
+import Vectors
 import struct
-import sys
-
+import threading
+import Queue
 import rospy
 
 from geometry_msgs.msg import (
@@ -48,30 +18,20 @@ from baxter_core_msgs.srv import (
         SolvePositionIK,
         SolvePositionIKRequest,
         )
-
 import baxter_interface
 import baxter_external_devices
 
 from baxter_interface import CHECK_VERSION
 
-def right_arm():
-    pose = Pose(
-            position=Point(
-                x=0.656982770038,
-                y=-0.852598021641,
-                z=0.0388609422173,
-                ),
-            orientation=Quaternion(
-                x=0.367048116303,
-                y=0.885911751787,
-                z=-0.108908281936,
-                w=0.261868353356,
-                ),
-            )
-    return ik_test('right', pose)
+direction = 1
 
-def ik_test(limb, pose):
-    rospy.init_node("rsdk_ik_service_client")
+mutex = threading.Lock()
+
+last_data = None;
+dz = 0.0;
+
+def ik_move(limb, pose):
+    rospy.init_node("move_" + limb)
     ns = "ExternalTools/" + limb + "/PositionKinematicsNode/IKService"
     iksvc = rospy.ServiceProxy(ns, SolvePositionIK)
     ikreq = SolvePositionIKRequest()
@@ -99,55 +59,159 @@ def ik_test(limb, pose):
                 ikreq.SEED_CURRENT: 'Current Joint Angles',
                 ikreq.SEED_NS_MAP: 'Nullspace Setpoints',
                 }.get(resp_seeds[0], 'None')
-        print("SUCCESS - Valid Joint Solution Found from Seed Type: %s" %
-                (seed_str,))
+        #print("SUCCESS - Valid Joint Solution Found from Seed Type: %s" % (seed_str,))
         # Format solution into Limb API-compatible dictionary
         limb_joints = dict(zip(resp.joints[0].name, resp.joints[0].position))
-        print "\nIK Joint Solution:\n", limb_joints
-        print "------------------"
-        print "Response Message:\n", resp
 
-
-
-        left = baxter_interface.Limb('left')
-        lj = left.joint_names()
-
-        #current_position = left.joint_angle(lj[3])
-        #joint_command = {lj[3]: current_position - delta}
-
-        command = {};
-
-        for i in range(0, len(resp.joints[0].name)):
-            command[resp.joints[0].name[i]] = resp.joints[0].position[i];
-
-        left.move_to_joint_positions(command)
-
-        left.set_joint_position_speed(1.0);
-
-
-
-
-
+        return resp
     else:
         print("INVALID POSE - No Valid Joint Solution Found.")
+        return None
 
-    return 0
+def make_move(msg, limb, speed):
+    SPEED_SCALE = 1
+    speed = speed * SPEED_SCALE
+    arm = baxter_interface.Limb(limb)
+    lj = arm.joint_names()
+
+    command = {}
+    for i in range(0, len(msg.joints[0].name)):
+        command[msg.joints[0].name[i]] = msg.joints[0].position[i]
+    
+
+    arm.set_joint_position_speed(speed)
 
 
-def main():
-    """RSDK Inverse Kinematics Example
 
-    A simple example of using the Rethink Inverse Kinematics
-    Service which returns the joint angles and validity for
-    a requested Cartesian Pose.
+    arm.set_joint_positions(command)
 
-    Run this example, passing the *limb* to test, and the
-    example will call the Service with a sample Cartesian
-    Pose, pre-defined in the example code, printing the
-    response of whether a valid joint solution was found,
-    and if so, the corresponding joint angles.
-    """
-    return right_arm()
 
-if __name__ == '__main__':
-    sys.exit(main())
+def recv_data(data):
+    '''
+    Take udp data and break into component messages
+    '''
+    
+    # split on token
+    list_data = data.split(',')
+    
+    # Convert next beat time
+    list_data[0] = float(list_data[0])
+
+    # Convert and normalize energy
+    list_data[1] = float(list_data[1])
+    list_data[1] = min(3000, list_data[1])
+    list_data[1] /= 3000
+
+    list_data[2] = float(list_data[2]);
+
+    dict_data = {'beat': list_data[0], 'energy': list_data[1], 'onset': list_data[2]}
+
+    return dict_data
+
+def decide_increment(data): 
+    #TODO - decide based on data
+    mutex.acquire()
+    global direction
+    
+    global dz
+
+    global last_data;
+    if last_data is None:
+        last_data = data;
+
+    if (data is not None):
+        wow = data['onset'];
+        dwow = data['onset'] - last_data['onset'];
+        if abs(dwow) > 0.01:
+            dz = dwow / 10.0;
+        print "dwow", dwow;
+
+    print "dz: ", dz
+
+    inc = Vectors.V4D(0.0, direction * 0.05, dz , 0.0)
+    mutex.release()
+
+    last_data = data;
+
+    return inc;
+
+def clamp(p, inner, outer):
+    if p.x() > outer.x():
+        p = Vectors.V4D(outer.x(), p.y(), p.z(), p.w())
+    elif p.x() < inner.x():
+        p = Vectors.V4D(inner.x(), p.y(), p.z(), p.w())
+    if p.y() > outer.y():
+        p = Vectors.V4D(p.x(), outer.y(), p.z(), p.w())
+    elif p.y() < inner.y():
+        p = Vectors.V4D(p.x(), inner.y(), p.z(), p.w())
+    if p.z() > outer.z():
+        p = Vectors.V4D(p.x(), p.y(), outer.z(), p.w())
+    elif p.z() < inner.z():
+        p = Vectors.V4D(p.x(), p.y(), inner.z(), p.w())
+    if p.w() > outer.w():
+        p = Vectors.V4D(p.x(), p.y(), p.z(), outer.w())
+    elif p.w() < inner.w():
+        p = Vectors.V4D(p.x(), p.y(), p.z(), inner.w())
+
+    return p
+
+
+
+
+
+def run(sock, arm, pose_func, edges):
+    current_p = edges['init']
+    i_bound = edges['init']
+    o_bound = edges['bound']
+
+
+    channel = Queue.Queue()
+
+    # initial values
+    increment = Vectors.V4D(0.00, 0.05, 0.00, 0);
+    speed = 0.5
+
+    # limit the amount of movement calls
+    lim = 1000
+    j = 0
+
+    mdata = None
+
+    while (j < lim):
+        j += 1
+        
+        # socket call
+        try:
+            data, addr = sock.recvfrom(1024)
+            mdata = recv_data(data)
+            speed = mdata['energy']
+            def swap_inc(data):
+                while time.time() < data['beat']:
+                    time.sleep(0.01)
+                global direction
+		mutex.acquire()
+                direction *= -1
+		mutex.release()
+	    t = threading.Thread(target = swap_inc, args = (mdata,))
+            t.daemon = True
+	    t.start()
+
+        except socket.error, e:
+           None 
+        
+        increment = decide_increment(mdata);
+
+        current_p = current_p + increment
+
+        current_p = clamp(current_p, i_bound, o_bound)
+
+        pose_func(current_p)
+
+        resp = ik_move(arm, pose_func(current_p))
+
+        if resp is not None:
+            make_move(resp, arm, speed)
+
+        print "--------"
+
+        time.sleep(0.1)
